@@ -1,0 +1,1810 @@
+# ============================================================
+# DATABASE MANAGEMENT SYSTEM - LABORATORY SOLUTIONS
+# MySQL & MongoDB | All 32 Questions (16 Main + 16 OR)
+# ============================================================
+
+# ============================================================
+# Q1 (MAIN): Student Course Management System (SQL)
+# ============================================================
+
+-- Step 1: Create Database
+CREATE DATABASE IF NOT EXISTS student_mgmt;
+USE student_mgmt;
+
+-- Step 2: Create Student Table
+CREATE TABLE Student (
+    rollno      INT          PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    address     VARCHAR(200),
+    phno        VARCHAR(15)  UNIQUE,
+    email_id    VARCHAR(100) UNIQUE NOT NULL,
+    marks       INT          CHECK (marks >= 0 AND marks <= 100)
+);
+
+-- Step 3: Create Courses Table
+CREATE TABLE Courses (
+    c_id    INT          PRIMARY KEY,
+    cname   VARCHAR(100) NOT NULL,
+    rollno  INT,
+    FOREIGN KEY (rollno) REFERENCES Student(rollno) ON DELETE CASCADE
+);
+
+-- Step 4: Insert Records into Student
+INSERT INTO Student VALUES
+(101, 'Alice Sharma',  'Mumbai',    '9876543210', 'alice@mail.com',  88),
+(102, 'Bob Verma',     'Delhi',     '9876543211', 'bob@mail.com',    72),
+(103, 'Carol Patel',   'Pune',      '9876543212', 'carol@mail.com',  95),
+(104, 'David Singh',   'Nagpur',    '9876543213', 'david@mail.com',  60),
+(105, 'Eva Mehta',     'Chennai',   '9876543214', 'eva@mail.com',    45),
+(106, 'Frank Nair',    'Kolkata',   '9876543215', 'frank@mail.com',  78),
+(107, 'Grace Iyer',    'Hyderabad', '9876543216', 'grace@mail.com',  91),
+(108, 'Hina Joshi',    'Jaipur',    '9876543217', 'hina@mail.com',   55),
+(109, 'Ivan Rao',      'Bangalore', '9876543218', 'ivan@mail.com',   83),
+(110, 'Jasmine Desai', 'Surat',     '9876543219', 'jasmine@mail.com',67);
+
+-- Step 5: Insert Records into Courses
+INSERT INTO Courses VALUES
+(1,  'DBMS',             101),
+(2,  'Operating System', 102),
+(3,  'Computer Networks',103),
+(4,  'Data Structures',  104),
+(5,  'Algorithms',       105),
+(6,  'Web Technology',   106),
+(7,  'Python',           107),
+(8,  'Java',             108),
+(9,  'Machine Learning', 109),
+(10, 'Cloud Computing',  110);
+
+-- Step 6: ALTER - Add a column
+ALTER TABLE Student ADD COLUMN dob DATE;
+
+-- Step 7: RENAME table
+RENAME TABLE Courses TO StudentCourses;
+
+-- Step 8: Demonstrate Constraint Violations
+-- VIOLATION 1: Duplicate email (UNIQUE constraint)
+-- INSERT INTO Student VALUES(111,'Test','Agra','9000000001','alice@mail.com',70); -- ERROR
+
+-- VIOLATION 2: marks out of range (CHECK constraint)
+-- INSERT INTO Student VALUES(112,'Test2','Agra','9000000002','t2@mail.com',150); -- ERROR
+
+-- VIOLATION 3: NULL name (NOT NULL constraint)
+-- INSERT INTO Student VALUES(113,NULL,'Agra','9000000003','t3@mail.com',50); -- ERROR
+
+-- Step 9: ON DELETE CASCADE demo
+DELETE FROM Student WHERE rollno = 101;
+SELECT * FROM StudentCourses; -- Course for rollno 101 is gone
+
+-- Step 10: TRUNCATE and DROP (for demo only)
+-- TRUNCATE TABLE StudentCourses;
+-- DROP TABLE StudentCourses;
+
+
+# ============================================================
+# Q1 (OR): MongoDB - Games Collection
+# ============================================================
+
+// Step 1: Select/Create Database
+use gameDB;
+
+// Step 2: Create collection and Add 5 games
+db.games.insertMany([
+  { name: "Elden Ring",     gametype: "RPG",     rating: 97 },
+  { name: "God of War",     gametype: "Action",  rating: 94 },
+  { name: "Minecraft",      gametype: "Sandbox", rating: 90 },
+  { name: "FIFA 24",        gametype: "Sports",  rating: 78 },
+  { name: "Cyberpunk 2077", gametype: "RPG",     rating: 85 }
+]);
+
+// Step 3: Return all games
+db.games.find({}).pretty();
+
+// Step 4: Return 3 highest rated games
+db.games.find({}).sort({ rating: -1 }).limit(3).pretty();
+
+// Step 5: Update 2 favourite games with achievements
+db.games.updateOne(
+  { name: "Elden Ring" },
+  { $push: { achievements: { $each: ["Game Master", "Speed Demon"] } } }
+);
+db.games.updateOne(
+  { name: "God of War" },
+  { $push: { achievements: { $each: ["Game Master", "Speed Demon"] } } }
+);
+
+// Step 6 & 7: Query games with BOTH achievements
+db.games.find({
+  achievements: { $all: ["Game Master", "Speed Demon"] }
+}).pretty();
+
+// Step 8: Query games that HAVE achievements (field exists)
+db.games.find({
+  achievements: { $exists: true, $not: { $size: 0 } }
+}).pretty();
+
+
+# ============================================================
+# Q2 (MAIN): Employee Table - Trigger & Cursor (PL/SQL)
+# ============================================================
+
+-- Step 1: Create Employee Table
+CREATE DATABASE IF NOT EXISTS emp_db;
+USE emp_db;
+
+CREATE TABLE Employee (
+    emp_id     INT           PRIMARY KEY AUTO_INCREMENT,
+    emp_name   VARCHAR(100)  NOT NULL,
+    department VARCHAR(50)   NOT NULL,
+    salary     DECIMAL(10,2) NOT NULL
+);
+
+-- Step 2: Insert 10 Records
+INSERT INTO Employee (emp_name, department, salary) VALUES
+('Rahul Sharma',  'HR',        45000.00),
+('Priya Patel',   'IT',        75000.00),
+('Amit Singh',    'Finance',   60000.00),
+('Sunita Rao',    'Marketing', 52000.00),
+('Vijay Kumar',   'IT',        90000.00),
+('Anjali Mehta',  'HR',        38000.00),
+('Deepak Nair',   'Finance',   67000.00),
+('Kavita Joshi',  'IT',        82000.00),
+('Sandeep Gupta', 'Marketing', 48000.00),
+('Meera Iyer',    'Admin',     35000.00);
+
+-- Step 3: Create TRIGGER to prevent salary < 10000
+DELIMITER $$
+
+CREATE TRIGGER trg_min_salary
+BEFORE INSERT ON Employee
+FOR EACH ROW
+BEGIN
+    IF NEW.salary < 10000 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'ERROR: Salary cannot be less than 10,000!';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_min_salary_update
+BEFORE UPDATE ON Employee
+FOR EACH ROW
+BEGIN
+    IF NEW.salary < 10000 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'ERROR: Updated salary cannot be less than 10,000!';
+    END IF;
+END$$
+
+-- Step 4: Stored Procedure using CURSOR
+CREATE PROCEDURE sp_display_employees()
+BEGIN
+    DECLARE v_id    INT;
+    DECLARE v_name  VARCHAR(100);
+    DECLARE v_dept  VARCHAR(50);
+    DECLARE v_sal   DECIMAL(10,2);
+    DECLARE v_total DECIMAL(10,2) DEFAULT 0;
+    DECLARE done    INT DEFAULT 0;
+
+    DECLARE emp_cursor CURSOR FOR
+        SELECT emp_id, emp_name, department, salary FROM Employee;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    OPEN emp_cursor;
+
+    read_loop: LOOP
+        FETCH emp_cursor INTO v_id, v_name, v_dept, v_sal;
+        IF done = 1 THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT v_id AS EmpID, v_name AS Name, v_dept AS Department, v_sal AS Salary;
+        SET v_total = v_total + v_sal;
+    END LOOP;
+
+    CLOSE emp_cursor;
+    SELECT CONCAT('TOTAL SALARY OF ALL EMPLOYEES: Rs. ', v_total) AS Summary;
+END$$
+
+DELIMITER ;
+
+-- Step 5: Call the Procedure
+CALL sp_display_employees();
+
+-- Step 6: Test Trigger (should raise error)
+-- INSERT INTO Employee (emp_name, department, salary) VALUES ('TestEmp', 'HR', 5000); -- ERROR
+
+
+# ============================================================
+# Q2 (OR): MongoDB - Games Collection (same as Q1 OR)
+# ============================================================
+-- Refer to Q1 (OR) answer above
+
+
+# ============================================================
+# Q3 (MAIN): Employees & Departments - Subqueries
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS company_db;
+USE company_db;
+
+CREATE TABLE Departments (
+    dept_id   INT         PRIMARY KEY,
+    dept_name VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE Employees (
+    emp_id   INT           PRIMARY KEY,
+    emp_name VARCHAR(100)  NOT NULL,
+    salary   DECIMAL(10,2) NOT NULL,
+    dept_id  INT,
+    FOREIGN KEY (dept_id) REFERENCES Departments(dept_id)
+);
+
+INSERT INTO Departments VALUES
+(1,'IT'), (2,'HR'), (3,'Finance'), (4,'Marketing'), (5,'Admin');
+
+INSERT INTO Employees VALUES
+(1,  'Alice',   85000,  1),
+(2,  'Bob',     45000,  2),
+(3,  'Carol',   95000,  1),
+(4,  'David',   62000,  3),
+(5,  'Eva',     30000,  2),
+(6,  'Frank',   72000,  4),
+(7,  'Grace',   110000, 1),
+(8,  'Hina',    55000,  3),
+(9,  'Ivan',    40000,  NULL),
+(10, 'Jasmine', 68000,  5);
+
+-- Query 1: Employees earning more than average salary
+SELECT emp_id, emp_name, salary
+FROM Employees
+WHERE salary > (SELECT AVG(salary) FROM Employees);
+
+-- Query 2: Employee(s) with the highest salary
+SELECT emp_id, emp_name, salary
+FROM Employees
+WHERE salary = (SELECT MAX(salary) FROM Employees);
+
+-- Query 3: Salary greater than dept average (correlated subquery)
+SELECT e.emp_id, e.emp_name, e.salary, e.dept_id
+FROM Employees e
+WHERE e.salary > (
+    SELECT AVG(e2.salary)
+    FROM Employees e2
+    WHERE e2.dept_id = e.dept_id
+);
+
+-- Query 4: Employees in depts where MAX salary > 60,000
+SELECT e.emp_id, e.emp_name, e.salary, d.dept_name
+FROM Employees e
+JOIN Departments d ON e.dept_id = d.dept_id
+WHERE e.dept_id IN (
+    SELECT dept_id FROM Employees
+    GROUP BY dept_id
+    HAVING MAX(salary) > 60000
+);
+
+-- Query 5: Employees NOT assigned to any department
+SELECT emp_id, emp_name
+FROM Employees
+WHERE dept_id NOT IN (
+    SELECT dept_id FROM Departments
+) OR dept_id IS NULL;
+
+-- Query 6: EXISTS - employees belonging to existing departments
+SELECT e.emp_id, e.emp_name
+FROM Employees e
+WHERE EXISTS (
+    SELECT 1 FROM Departments d
+    WHERE d.dept_id = e.dept_id
+);
+
+
+# ============================================================
+# Q3 (OR): Employee Trigger & Cursor - same as Q2 (MAIN)
+# ============================================================
+-- Refer to Q2 (Main) answer above
+
+
+# ============================================================
+# Q4 (MAIN): Stored Procedure - proc_Grade
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS grade_db;
+USE grade_db;
+
+CREATE TABLE Stud_Marks (
+    id          INT          PRIMARY KEY AUTO_INCREMENT,
+    name        VARCHAR(100) NOT NULL,
+    total_marks INT          NOT NULL
+);
+
+CREATE TABLE Result (
+    roll  INT          PRIMARY KEY AUTO_INCREMENT,
+    name  VARCHAR(100),
+    class VARCHAR(30)
+);
+
+INSERT INTO Stud_Marks (name, total_marks) VALUES
+('Alice',   1200),
+('Bob',     950),
+('Carol',   870),
+('David',   800),
+('Eva',     1450),
+('Frank',   910),
+('Grace',   835),
+('Hina',    780),
+('Ivan',    1100),
+('Jasmine', 990);
+
+DELIMITER $$
+
+CREATE PROCEDURE proc_Grade()
+BEGIN
+    DECLARE v_name  VARCHAR(100);
+    DECLARE v_marks INT;
+    DECLARE v_class VARCHAR(30);
+    DECLARE done    INT DEFAULT 0;
+
+    DECLARE stud_cursor CURSOR FOR
+        SELECT name, total_marks FROM Stud_Marks;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    TRUNCATE TABLE Result;
+
+    OPEN stud_cursor;
+
+    grade_loop: LOOP
+        FETCH stud_cursor INTO v_name, v_marks;
+        IF done = 1 THEN
+            LEAVE grade_loop;
+        END IF;
+
+        IF v_marks >= 990 AND v_marks <= 1500 THEN
+            SET v_class = 'Distinction';
+        ELSEIF v_marks >= 900 AND v_marks <= 989 THEN
+            SET v_class = 'First Class';
+        ELSEIF v_marks >= 825 AND v_marks <= 899 THEN
+            SET v_class = 'Higher Second Class';
+        ELSE
+            SET v_class = 'Pass / Fail';
+        END IF;
+
+        INSERT INTO Result (name, class) VALUES (v_name, v_class);
+    END LOOP;
+
+    CLOSE stud_cursor;
+
+    SELECT * FROM Result;
+    SELECT CONCAT('Total students processed: ', COUNT(*)) AS Summary FROM Result;
+END$$
+
+DELIMITER ;
+
+-- Call the Procedure
+CALL proc_Grade();
+
+-- Verify Results
+SELECT R.roll, SM.name, SM.total_marks, R.class
+FROM Result R
+JOIN Stud_Marks SM ON R.name = SM.name
+ORDER BY SM.total_marks DESC;
+
+
+# ============================================================
+# Q4 (OR): Student Course Management System - same as Q1 (MAIN)
+# ============================================================
+-- Refer to Q1 (Main) answer above
+
+
+# ============================================================
+# Q5 (MAIN): Online Shopping System (SQL)
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS shopping_db;
+USE shopping_db;
+
+CREATE TABLE Customer (
+    c_id    INT          PRIMARY KEY,
+    name    VARCHAR(100) NOT NULL,
+    address VARCHAR(200),
+    phno    VARCHAR(15),
+    email   VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE Product (
+    p_id  INT           PRIMARY KEY,
+    pname VARCHAR(100)  NOT NULL,
+    c_id  INT,
+    price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+    qty   INT           NOT NULL CHECK (qty >= 1),
+    FOREIGN KEY (c_id) REFERENCES Customer(c_id) ON DELETE CASCADE
+);
+
+INSERT INTO Customer VALUES
+(1, 'Alice Sharma', 'Mumbai',    '9876543210', 'alice@shop.com'),
+(2, 'Bob Verma',    'Delhi',     '9876543211', 'bob@shop.com'),
+(3, 'Carol Patel',  'Pune',      '9876543212', 'carol@shop.com'),
+(4, 'David Singh',  'Nagpur',    '9876543213', 'david@shop.com'),
+(5, 'Eva Mehta',    'Chennai',   '9876543214', 'eva@shop.com'),
+(6, 'Frank Nair',   'Kolkata',   '9876543215', 'frank@shop.com'),
+(7, 'Grace Iyer',   'Hyderabad', '9876543216', 'grace@shop.com'),
+(8, 'Hina Joshi',   'Jaipur',    '9876543217', 'hina@shop.com');
+
+INSERT INTO Product VALUES
+(101, 'Laptop',     1, 55000.00, 10),
+(102, 'Smartphone', 2, 25000.00, 25),
+(103, 'Headphones', 3,  2500.00, 50),
+(104, 'Keyboard',   4,  1500.00, 30),
+(105, 'Mouse',      5,   800.00, 40),
+(106, 'Monitor',    6, 18000.00, 15),
+(107, 'Webcam',     7,  3500.00, 20),
+(108, 'USB Hub',    8,   999.00, 60),
+(109, 'SSD Drive',  1,  7500.00, 35),
+(110, 'Printer',    2, 12000.00,  8);
+
+-- ALTER: Add a new column
+ALTER TABLE Customer ADD COLUMN loyalty_points INT DEFAULT 0;
+
+-- RENAME Table
+RENAME TABLE Product TO Products;
+
+-- Test Constraint Violations
+-- INSERT INTO Products VALUES(200,'Bad Product',1,-100,5);   -- ERROR: CHECK price
+-- INSERT INTO Products VALUES(201,'Bad Qty',1,500,0);        -- ERROR: CHECK qty
+-- INSERT INTO Customer VALUES(9,'Dup','City','1111111111','alice@shop.com'); -- ERROR: UNIQUE
+
+-- ON DELETE CASCADE Demo
+DELETE FROM Customer WHERE c_id = 1;
+SELECT * FROM Products WHERE c_id = 1; -- Returns empty
+
+-- TRUNCATE TABLE Products;
+-- DROP TABLE Products;
+
+
+# ============================================================
+# Q5 (OR): Banking Management System (SQL)
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS bank_db;
+USE bank_db;
+
+CREATE TABLE Customers (
+    cust_id INT           PRIMARY KEY AUTO_INCREMENT,
+    name    VARCHAR(100)  NOT NULL,
+    balance DECIMAL(12,2) DEFAULT 0,
+    city    VARCHAR(50)
+);
+
+CREATE TABLE Transactions (
+    txn_id   INT           PRIMARY KEY AUTO_INCREMENT,
+    cust_id  INT,
+    amount   DECIMAL(12,2),
+    txn_type ENUM('DEPOSIT','WITHDRAWAL') NOT NULL,
+    FOREIGN KEY (cust_id) REFERENCES Customers(cust_id)
+);
+
+INSERT INTO Customers (name, balance, city) VALUES
+('Amit Shah',     150000, 'Mumbai'),
+('Anjali Roy',     80000, 'Delhi'),
+('Arjun Mehta',   220000, 'Pune'),
+('Bharat Singh',   45000, 'Nagpur'),
+('Chandra Patel',  95000, 'Ahmedabad'),
+('Deepika Nair',   12000, 'Chennai'),
+('Ekta Sharma',    67000, 'Kolkata'),
+('Faisal Khan',    33000, 'Hyderabad');
+
+INSERT INTO Transactions (cust_id, amount, txn_type) VALUES
+(1, 20000, 'DEPOSIT'),
+(1,  5000, 'WITHDRAWAL'),
+(2, 15000, 'DEPOSIT'),
+(3, 30000, 'WITHDRAWAL'),
+(4, 10000, 'DEPOSIT'),
+(5,  8000, 'WITHDRAWAL'),
+(6, 25000, 'DEPOSIT'),
+(7, 12000, 'WITHDRAWAL');
+
+-- UPDATE balance after deposit
+UPDATE Customers SET balance = balance + 10000 WHERE cust_id = 4;
+
+-- UPDATE balance after withdrawal
+UPDATE Customers SET balance = balance - 5000 WHERE cust_id = 6;
+
+-- DELETE inactive customer
+DELETE FROM Customers WHERE balance < 15000;
+
+-- Arithmetic operation
+SELECT name, balance, balance * 0.05 AS annual_interest FROM Customers;
+
+-- Logical operators
+SELECT * FROM Customers WHERE city = 'Mumbai' OR balance > 100000;
+
+-- LIKE pattern matching
+SELECT * FROM Customers WHERE name LIKE 'A%';
+
+-- String functions
+SELECT UPPER(name) AS UpperName, LENGTH(name) AS NameLength, city FROM Customers;
+
+-- UNION: Combine depositors and withdrawers
+SELECT DISTINCT c.name, 'Depositor' AS Type
+FROM Customers c JOIN Transactions t ON c.cust_id = t.cust_id
+WHERE t.txn_type = 'DEPOSIT'
+UNION
+SELECT DISTINCT c.name, 'Withdrawer' AS Type
+FROM Customers c JOIN Transactions t ON c.cust_id = t.cust_id
+WHERE t.txn_type = 'WITHDRAWAL';
+
+
+# ============================================================
+# Q6 (MAIN): MongoDB - Orders Aggregation
+# ============================================================
+
+use orderDB;
+
+db.orders.insertMany([
+  { name: "Alice",   product: "Laptop",       category: "Electronics", amt: 55000, date: new Date("2024-01-10") },
+  { name: "Bob",     product: "Shirt",         category: "Clothing",    amt: 1200,  date: new Date("2024-01-12") },
+  { name: "Carol",   product: "Smartphone",    category: "Electronics", amt: 25000, date: new Date("2024-01-15") },
+  { name: "David",   product: "Jeans",         category: "Clothing",    amt: 2500,  date: new Date("2024-01-16") },
+  { name: "Eva",     product: "Headphones",    category: "Electronics", amt: 3500,  date: new Date("2024-01-18") },
+  { name: "Frank",   product: "Groceries",     category: "Food",        amt: 800,   date: new Date("2024-01-19") },
+  { name: "Grace",   product: "Microwave",     category: "Appliances",  amt: 8000,  date: new Date("2024-01-20") },
+  { name: "Hina",    product: "Fruits",        category: "Food",        amt: 600,   date: new Date("2024-01-21") },
+  { name: "Ivan",    product: "Refrigerator",  category: "Appliances",  amt: 32000, date: new Date("2024-01-22") },
+  { name: "Jasmine", product: "T-Shirt",       category: "Clothing",    amt: 900,   date: new Date("2024-01-23") }
+]);
+
+// Query 1: Total sales amount per category
+db.orders.aggregate([
+  { $group: { _id: "$category", totalSales: { $sum: "$amt" } } }
+]);
+
+// Query 2: Average order amount per category
+db.orders.aggregate([
+  { $group: { _id: "$category", avgAmount: { $avg: "$amt" } } }
+]);
+
+// Query 3: Sort categories by total sales (descending)
+db.orders.aggregate([
+  { $group: { _id: "$category", totalSales: { $sum: "$amt" }, avgAmount: { $avg: "$amt" }, orderCount: { $count: {} } } },
+  { $sort: { totalSales: -1 } },
+  { $project: { _id: 0, category: "$_id", totalSales: 1, avgAmount: { $round: ["$avgAmount", 2] }, orderCount: 1 } }
+]);
+
+
+# ============================================================
+# Q6 (OR): Bank SQL - Deposit/Branch/Borrower Queries
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS bank_sql_db;
+USE bank_sql_db;
+
+CREATE TABLE Branch (
+    bname VARCHAR(50)  PRIMARY KEY,
+    city  VARCHAR(50)  NOT NULL
+);
+
+CREATE TABLE Customers (
+    cname VARCHAR(100) PRIMARY KEY,
+    city  VARCHAR(50)  NOT NULL
+);
+
+CREATE TABLE Deposit (
+    actno  INT           PRIMARY KEY,
+    cname  VARCHAR(100),
+    bname  VARCHAR(50),
+    amount DECIMAL(10,2),
+    adate  DATE,
+    FOREIGN KEY (cname) REFERENCES Customers(cname),
+    FOREIGN KEY (bname) REFERENCES Branch(bname)
+);
+
+CREATE TABLE Borrower (
+    loanno INT           PRIMARY KEY,
+    cname  VARCHAR(100),
+    bname  VARCHAR(50),
+    amount DECIMAL(10,2),
+    FOREIGN KEY (cname) REFERENCES Customers(cname),
+    FOREIGN KEY (bname) REFERENCES Branch(bname)
+);
+
+INSERT INTO Branch VALUES
+('SBI Bombay','Bombay'), ('PNB Nagpur','Nagpur'),
+('HDFC Pune','Pune'), ('ICICI Delhi','Delhi'), ('Axis Chennai','Chennai');
+
+INSERT INTO Customers VALUES
+('Sunil','Bombay'), ('Ramesh','Nagpur'), ('Priya','Pune'),
+('Sita','Bombay'), ('Anita','Nagpur'), ('Vijay','Delhi');
+
+INSERT INTO Deposit VALUES
+(1001,'Sunil', 'PNB Nagpur',  5000, '2023-01-10'),
+(1002,'Ramesh','PNB Nagpur',  8000, '2023-02-15'),
+(1003,'Priya', 'HDFC Pune',  12000, '2023-03-20'),
+(1004,'Sita',  'SBI Bombay',  3000, '2023-04-25'),
+(1005,'Anita', 'PNB Nagpur', 15000, '2023-05-30'),
+(1006,'Vijay', 'ICICI Delhi', 9000, '2023-06-10');
+
+INSERT INTO Borrower VALUES
+(2001,'Ramesh','PNB Nagpur',  3000),
+(2002,'Anita', 'PNB Nagpur',  7000),
+(2003,'Vijay', 'ICICI Delhi', 5000),
+(2004,'Sunil', 'SBI Bombay',  2500),
+(2005,'Priya', 'HDFC Pune',   1500);
+
+-- Query 1: Customer in Bombay & branch in Nagpur
+SELECT DISTINCT D.cname
+FROM Deposit D
+JOIN Customers C ON D.cname = C.cname
+JOIN Branch B ON D.bname = B.bname
+WHERE C.city = 'Bombay' AND B.city = 'Nagpur';
+
+-- Query 2: Living city = Branch city
+SELECT DISTINCT D.cname
+FROM Deposit D
+JOIN Customers C ON D.cname = C.cname
+JOIN Branch B ON D.bname = B.bname
+WHERE C.city = B.city;
+
+-- Query 3: Both Borrowers & Depositors in Nagpur
+SELECT DISTINCT D.cname
+FROM Deposit D
+JOIN Customers C ON D.cname = C.cname
+WHERE C.city = 'Nagpur'
+  AND D.cname IN (SELECT cname FROM Borrower);
+
+-- Query 4: Deposit > 1000 AND Loan > 2000
+SELECT DISTINCT B.cname
+FROM Borrower B
+JOIN Deposit D ON B.cname = D.cname
+WHERE D.amount > 1000 AND B.amount > 2000;
+
+-- Query 5: City where Sunil's deposit branch is located
+SELECT C.cname
+FROM Customers C
+WHERE C.city = (
+    SELECT BR.city FROM Deposit D
+    JOIN Branch BR ON D.bname = BR.bname
+    WHERE D.cname = 'Sunil'
+    LIMIT 1
+);
+
+-- Query 6: Create Index on Deposit table
+CREATE INDEX idx_deposit_cname ON Deposit(cname);
+CREATE INDEX idx_deposit_bname ON Deposit(bname);
+SHOW INDEX FROM Deposit;
+
+
+# ============================================================
+# Q7 (MAIN): Employee-Works-Company-Manages Queries
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS emp_company_db;
+USE emp_company_db;
+
+CREATE TABLE employee (
+    employee_name VARCHAR(100) PRIMARY KEY,
+    street        VARCHAR(100),
+    city          VARCHAR(50)
+);
+
+CREATE TABLE company (
+    company_name VARCHAR(100) PRIMARY KEY,
+    city         VARCHAR(50)
+);
+
+CREATE TABLE works (
+    employee_name VARCHAR(100),
+    company_name  VARCHAR(100),
+    salary        DECIMAL(10,2),
+    FOREIGN KEY (employee_name) REFERENCES employee(employee_name),
+    FOREIGN KEY (company_name)  REFERENCES company(company_name)
+);
+
+CREATE TABLE manages (
+    employee_name VARCHAR(100),
+    manager_name  VARCHAR(100)
+);
+
+INSERT INTO company VALUES
+('First Bank Corporation', 'New York'),
+('Small Bank Corporation', 'New York'),
+('Tech Corp',              'Chicago'),
+('Finance Ltd',            'Boston'),
+('Small Savings Bank',     'Chicago');
+
+INSERT INTO employee VALUES
+('John Smith',     '123 Elm St',    'New York'),
+('Jane Doe',       '456 Oak Ave',   'New York'),
+('Bob Johnson',    '789 Pine Rd',   'Chicago'),
+('Alice Williams', '321 Maple Dr',  'Boston'),
+('Charlie Brown',  '654 Cedar Ln',  'New York'),
+('Diana Prince',   '987 Birch Bl',  'Chicago'),
+('Ethan Hunt',     '111 Willow Ct', 'New York');
+
+INSERT INTO works VALUES
+('John Smith',    'First Bank Corporation', 12000),
+('Jane Doe',      'First Bank Corporation',  9000),
+('Bob Johnson',   'Tech Corp',              15000),
+('Alice Williams','Finance Ltd',            11000),
+('Charlie Brown', 'First Bank Corporation', 18000),
+('Diana Prince',  'Small Savings Bank',      8000),
+('Ethan Hunt',    'First Bank Corporation',  7500);
+
+INSERT INTO manages VALUES
+('John Smith',    'Charlie Brown'),
+('Bob Johnson',   'Diana Prince'),
+('Alice Williams','Jane Doe');
+
+-- Query 1: Employees at First Bank Corporation
+SELECT employee_name FROM works WHERE company_name = 'First Bank Corporation';
+
+-- Query 2: Employees NOT at First Bank Corporation
+SELECT employee_name FROM works WHERE company_name != 'First Bank Corporation';
+
+-- Query 3: Company with most employees
+SELECT company_name, COUNT(*) AS emp_count
+FROM works GROUP BY company_name ORDER BY emp_count DESC LIMIT 1;
+
+-- Query 4: Companies in every city of Small Savings Bank
+SELECT DISTINCT w.company_name
+FROM works w JOIN company c ON w.company_name = c.company_name
+WHERE c.city IN (SELECT city FROM company WHERE company_name = 'Small Savings Bank');
+
+-- Query 5: Employees with salary > 10,000
+SELECT e.employee_name, e.street, e.city, w.salary
+FROM employee e JOIN works w ON e.employee_name = w.employee_name
+WHERE w.salary > 10000;
+
+-- Query 6: Update First Bank Corporation salaries by 10%
+UPDATE works SET salary = salary * 1.10 WHERE company_name = 'First Bank Corporation';
+
+-- Query 7: Employees and their managers
+SELECT m.employee_name AS Employee, m.manager_name AS Manager FROM manages m;
+
+-- Query 8: FBC employees with street/city, salary > 10,000
+SELECT e.employee_name, e.street, e.city, w.salary
+FROM employee e JOIN works w ON e.employee_name = w.employee_name
+WHERE w.company_name = 'First Bank Corporation' AND w.salary > 10000;
+
+-- Query 9: Companies with higher avg salary than FBC avg
+SELECT company_name, AVG(salary) AS avg_sal
+FROM works GROUP BY company_name
+HAVING AVG(salary) > (
+    SELECT AVG(salary) FROM works WHERE company_name = 'First Bank Corporation'
+);
+
+
+# ============================================================
+# Q7 (OR): MongoDB - Orders Aggregation (same as Q6 MAIN)
+# ============================================================
+-- Refer to Q6 (Main) MongoDB answer above
+
+
+# ============================================================
+# Q8 (MAIN): MongoDB - Indexing for Performance
+# ============================================================
+
+use userDB;
+
+db.users.insertMany([
+  { name: "Alice Sharma",  email: "alice@mail.com",   age: 25, city: "Mumbai" },
+  { name: "Bob Verma",     email: "bob@mail.com",     age: 30, city: "Delhi" },
+  { name: "Carol Patel",   email: "carol@mail.com",   age: 22, city: "Mumbai" },
+  { name: "David Singh",   email: "david@mail.com",   age: 18, city: "Pune" },
+  { name: "Eva Mehta",     email: "eva@mail.com",     age: 35, city: "Mumbai" },
+  { name: "Frank Nair",    email: "frank@mail.com",   age: 28, city: "Chennai" },
+  { name: "Grace Iyer",    email: "grace@mail.com",   age: 21, city: "Mumbai" },
+  { name: "Hina Joshi",    email: "hina@mail.com",    age: 19, city: "Kolkata" },
+  { name: "Ivan Rao",      email: "ivan@mail.com",    age: 32, city: "Mumbai" },
+  { name: "Jasmine Desai", email: "jasmine@mail.com", age: 27, city: "Jaipur" }
+]);
+
+// Query 1: Create index on email field
+db.users.createIndex({ email: 1 }, { unique: true });
+db.users.getIndexes();
+
+// Query 2: Create compound index on city and age
+db.users.createIndex({ city: 1, age: 1 });
+
+// Query 3: Efficiently query users from Mumbai aged above 20
+db.users.find(
+  { city: "Mumbai", age: { $gt: 20 } },
+  { _id: 0, name: 1, email: 1, age: 1, city: 1 }
+).sort({ age: 1 });
+
+// Explain plan to verify index usage
+db.users.find({ city: "Mumbai", age: { $gt: 20 } }).explain("executionStats");
+
+// List all indexes
+db.users.getIndexes();
+
+
+# ============================================================
+# Q8 (OR): Student Course - JOINs & VIEWs
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS scms_db;
+USE scms_db;
+
+CREATE TABLE Students (
+    student_id   INT          PRIMARY KEY AUTO_INCREMENT,
+    student_name VARCHAR(100) NOT NULL,
+    email        VARCHAR(100) UNIQUE
+);
+
+CREATE TABLE Courses (
+    course_id   INT          PRIMARY KEY AUTO_INCREMENT,
+    course_name VARCHAR(100) NOT NULL,
+    credits     INT DEFAULT 3
+);
+
+CREATE TABLE Enrollments (
+    enroll_id  INT PRIMARY KEY AUTO_INCREMENT,
+    student_id INT,
+    course_id  INT,
+    marks      INT CHECK (marks >= 0 AND marks <= 100),
+    FOREIGN KEY (student_id) REFERENCES Students(student_id),
+    FOREIGN KEY (course_id)  REFERENCES Courses(course_id)
+);
+
+INSERT INTO Students (student_name, email) VALUES
+('Alice','alice@st.com'), ('Bob','bob@st.com'),   ('Carol','carol@st.com'),
+('David','david@st.com'), ('Eva','eva@st.com'),   ('Frank','frank@st.com');
+
+INSERT INTO Courses (course_name, credits) VALUES
+('DBMS',3), ('OS',3), ('Networks',4), ('Python',3), ('Java',4), ('Web Tech',3);
+
+INSERT INTO Enrollments (student_id, course_id, marks) VALUES
+(1,1,85),(1,2,78),(2,1,92),(2,3,65),(3,2,88),
+(4,4,72),(5,5,96),(5,1,55),(3,3,79);
+
+-- Query 1: INNER JOIN
+SELECT S.student_name, C.course_name, E.marks
+FROM Students S
+INNER JOIN Enrollments E ON S.student_id = E.student_id
+INNER JOIN Courses C ON E.course_id = C.course_id;
+
+-- Query 2: LEFT JOIN (all students, even not enrolled)
+SELECT S.student_name, C.course_name, E.marks
+FROM Students S
+LEFT JOIN Enrollments E ON S.student_id = E.student_id
+LEFT JOIN Courses C ON E.course_id = C.course_id;
+
+-- Query 3: RIGHT JOIN (all courses, even with no students)
+SELECT S.student_name, C.course_name, E.marks
+FROM Enrollments E
+RIGHT JOIN Courses C ON E.course_id = C.course_id
+LEFT JOIN Students S ON E.student_id = S.student_id;
+
+-- Query 4: FULL OUTER JOIN (MySQL uses UNION)
+SELECT S.student_name, C.course_name, E.marks
+FROM Students S
+LEFT JOIN Enrollments E ON S.student_id = E.student_id
+LEFT JOIN Courses C ON E.course_id = C.course_id
+UNION
+SELECT S.student_name, C.course_name, E.marks
+FROM Students S
+RIGHT JOIN Enrollments E ON S.student_id = E.student_id
+RIGHT JOIN Courses C ON E.course_id = C.course_id;
+
+-- Query 5: Create View - Student_Course_View
+CREATE OR REPLACE VIEW Student_Course_View AS
+SELECT S.student_name AS StudentName,
+       C.course_name  AS CourseName,
+       E.marks        AS Marks
+FROM Students S
+JOIN Enrollments E ON S.student_id = E.student_id
+JOIN Courses C     ON E.course_id  = C.course_id;
+
+-- Query 6: View for marks > 75
+CREATE OR REPLACE VIEW High_Scorers_View AS
+SELECT StudentName, CourseName, Marks
+FROM Student_Course_View
+WHERE Marks > 75;
+
+-- Query 7: Retrieve from both views
+SELECT * FROM Student_Course_View;
+SELECT * FROM High_Scorers_View;
+
+-- Query 8: Drop one view
+DROP VIEW IF EXISTS High_Scorers_View;
+
+
+# ============================================================
+# Q9 (MAIN): MongoDB - Cursor Aggregation -> customer_total
+# ============================================================
+
+use orderDB;
+
+db.orders.insertMany([
+  { name: "Alice", product: "Tablet",   category: "Electronics", amt: 18000, date: new Date("2024-02-01") },
+  { name: "Bob",   product: "Jacket",   category: "Clothing",    amt: 3500,  date: new Date("2024-02-02") },
+  { name: "Alice", product: "Watch",    category: "Accessories", amt: 5000,  date: new Date("2024-02-03") },
+  { name: "Carol", product: "Sneakers", category: "Footwear",    amt: 4000,  date: new Date("2024-02-04") },
+  { name: "Bob",   product: "Trousers", category: "Clothing",    amt: 2800,  date: new Date("2024-02-05") }
+]);
+
+// Method 1: Aggregation Pipeline
+db.customer_total.drop();
+
+db.orders.aggregate([
+  { $group: { _id: "$name", totalSales: { $sum: "$amt" }, orderCount: { $count: {} }, avgOrderAmt: { $avg: "$amt" } } },
+  { $project: { _id: 0, customer: "$_id", totalSales: 1, orderCount: 1, avgOrderAmt: { $round: ["$avgOrderAmt", 2] } } },
+  { $out: "customer_total" }
+]);
+
+db.customer_total.find().sort({ totalSales: -1 }).pretty();
+
+// Method 2: JavaScript forEach (simulates cursor iteration)
+db.customer_total.drop();
+
+let customerMap = {};
+
+db.orders.find().forEach(function(order) {
+  let cust = order.name;
+  if (!customerMap[cust]) {
+    customerMap[cust] = { totalSales: 0, orderCount: 0 };
+  }
+  customerMap[cust].totalSales += order.amt;
+  customerMap[cust].orderCount += 1;
+});
+
+for (let cust in customerMap) {
+  db.customer_total.insertOne({
+    customer:   cust,
+    totalSales: customerMap[cust].totalSales,
+    orderCount: customerMap[cust].orderCount,
+    avgAmt:     parseFloat((customerMap[cust].totalSales / customerMap[cust].orderCount).toFixed(2))
+  });
+}
+
+db.customer_total.find().sort({ totalSales: -1 }).pretty();
+
+
+# ============================================================
+# Q9 (OR): SQL DML - Data Manipulation Operations
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS dml_demo;
+USE dml_demo;
+
+CREATE TABLE Products (
+    p_id     INT           PRIMARY KEY AUTO_INCREMENT,
+    pname    VARCHAR(100)  NOT NULL,
+    price    DECIMAL(10,2),
+    category VARCHAR(50),
+    stock    INT
+);
+
+INSERT INTO Products (pname, price, category, stock) VALUES
+('Laptop',     65000, 'Electronics', 10),
+('Phone',      25000, 'Electronics', 25),
+('Shirt',       1200, 'Clothing',    50),
+('Shoes',       3500, 'Footwear',    30),
+('Headphones',  2500, 'Electronics', 40),
+('Jeans',       2800, 'Clothing',    35),
+('Tablet',     18000, 'Electronics', 15),
+('Jacket',      5000, 'Clothing',    20),
+('Sunglasses',  1500, 'Accessories', 45),
+('Watch',       8000, 'Accessories', 12);
+
+-- UPDATE
+UPDATE Products SET price = price * 0.90 WHERE category = 'Electronics';
+UPDATE Products SET stock = stock + 5   WHERE pname = 'Laptop';
+
+-- DELETE
+DELETE FROM Products WHERE stock < 12;
+
+-- Arithmetic
+SELECT pname, price, stock, price * stock AS inventory_value, price * 0.18 AS gst_amount
+FROM Products;
+
+-- Logical Operators
+SELECT * FROM Products WHERE price > 5000 AND category = 'Electronics';
+SELECT * FROM Products WHERE category = 'Clothing' OR category = 'Footwear';
+
+-- LIKE
+SELECT * FROM Products WHERE pname LIKE '%phone%';
+SELECT * FROM Products WHERE pname LIKE 'L%';
+SELECT * FROM Products WHERE pname LIKE '%es';
+
+-- String Functions
+SELECT UPPER(pname) AS ProductUpper, LOWER(pname) AS ProductLower,
+       LENGTH(pname) AS NameLength, CONCAT(pname, ' [', category, ']') AS FullLabel
+FROM Products;
+
+-- UNION
+SELECT pname, category FROM Products WHERE price > 10000
+UNION
+SELECT pname, category FROM Products WHERE stock < 20;
+
+-- INTERSECT simulation (MySQL uses JOIN)
+SELECT p1.pname FROM Products p1
+WHERE p1.price > 10000
+  AND p1.p_id IN (SELECT p2.p_id FROM Products p2 WHERE p2.stock < 20);
+
+-- DCL: Access Control
+-- GRANT SELECT ON dml_demo.Products TO 'viewer'@'localhost';
+-- REVOKE SELECT ON dml_demo.Products FROM 'viewer'@'localhost';
+
+
+# ============================================================
+# Q10 (MAIN): MongoDB - Aggregation (same as Q9 MAIN)
+# ============================================================
+-- Refer to Q9 (Main) MongoDB answer above
+
+
+# ============================================================
+# Q10 (OR): Library Management System - DML & Functions
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS library_db;
+USE library_db;
+
+CREATE TABLE Members (
+    member_id INT          PRIMARY KEY AUTO_INCREMENT,
+    name      VARCHAR(100) NOT NULL,
+    email     VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE Books (
+    book_id INT          PRIMARY KEY AUTO_INCREMENT,
+    title   VARCHAR(200) NOT NULL,
+    author  VARCHAR(100) NOT NULL,
+    price   DECIMAL(8,2) CHECK (price > 0)
+);
+
+CREATE TABLE Borrow (
+    borrow_id   INT  PRIMARY KEY AUTO_INCREMENT,
+    member_id   INT,
+    book_id     INT,
+    borrow_date DATE DEFAULT (CURRENT_DATE),
+    FOREIGN KEY (member_id) REFERENCES Members(member_id),
+    FOREIGN KEY (book_id)   REFERENCES Books(book_id)
+);
+
+INSERT INTO Members (name, email) VALUES
+('Alice Sharma','alice@lib.com'), ('Bob Verma',  'bob@lib.com'),
+('Carol Patel', 'carol@lib.com'), ('David Singh','david@lib.com'),
+('Eva Mehta',   'eva@lib.com');
+
+INSERT INTO Books (title, author, price) VALUES
+('SQL Mastery',          'John Doe',    450.00),
+('Learning MongoDB',     'Jane Smith',  380.00),
+('Advanced SQL Queries', 'Alice Brown', 620.00),
+('Python for Beginners', 'XYZ Author',  550.00),
+('Data Structures in C', 'XYZ Author',  480.00),
+('MySQL Complete Guide', 'Bob White',   700.00),
+('NoSQL Databases',      'Carol Green', 320.00),
+('Database Design',      'XYZ Author',  590.00);
+
+INSERT INTO Borrow (member_id, book_id, borrow_date) VALUES
+(1,1,'2024-01-05'),(1,3,'2024-01-10'),(2,2,'2024-01-12'),
+(3,4,'2024-01-15'),(4,5,'2024-01-18'),(5,6,'2024-01-20'),
+(2,7,'2024-01-22'),(3,8,'2024-01-25');
+
+-- UPDATE: 15% discount for XYZ Author books
+UPDATE Books SET price = price * 0.85 WHERE author = 'XYZ Author';
+
+-- DELETE: returned/lost book
+DELETE FROM Borrow WHERE borrow_id = 5;
+
+-- Arithmetic: price after 10% discount
+SELECT title, price, price * 0.90 AS discounted_price, price - (price*0.10) AS savings
+FROM Books;
+
+-- Logical conditions
+SELECT * FROM Books WHERE price > 500 AND author = 'XYZ Author';
+
+-- LIKE: title contains 'SQL'
+SELECT * FROM Books WHERE title LIKE '%SQL%';
+
+-- String Functions
+SELECT LOWER(title) AS lower_title,
+       CONCAT(author, ' - ', title) AS full_label,
+       LENGTH(title) AS title_len
+FROM Books;
+
+-- UNION
+SELECT name AS item, 'Member' AS type FROM Members
+UNION
+SELECT title, 'Book' FROM Books;
+
+-- INTERSECT simulation: Members who borrowed
+SELECT DISTINCT M.name
+FROM Members M
+WHERE M.member_id IN (SELECT member_id FROM Borrow);
+
+
+# ============================================================
+# Q11 (MAIN): Library System - DCL & TCL
+# ============================================================
+
+USE library_db;
+
+-- Add stock column
+ALTER TABLE Books ADD COLUMN IF NOT EXISTS stock INT DEFAULT 5;
+UPDATE Books SET stock = 5;
+
+-- DCL: Create Users
+CREATE USER IF NOT EXISTS 'librarian'@'localhost' IDENTIFIED BY 'Lib@1234';
+CREATE USER IF NOT EXISTS 'assistant'@'localhost' IDENTIFIED BY 'Asst@1234';
+
+-- GRANT full access to librarian
+GRANT ALL PRIVILEGES ON library_db.* TO 'librarian'@'localhost';
+
+-- GRANT only SELECT to assistant
+GRANT SELECT ON library_db.Members TO 'assistant'@'localhost';
+GRANT SELECT ON library_db.Books   TO 'assistant'@'localhost';
+GRANT SELECT ON library_db.Borrow  TO 'assistant'@'localhost';
+
+-- REVOKE example
+-- REVOKE INSERT ON library_db.Borrow FROM 'librarian'@'localhost';
+
+FLUSH PRIVILEGES;
+
+-- TCL: Issue a Book (Transaction)
+START TRANSACTION;
+
+INSERT INTO Borrow (member_id, book_id, borrow_date) VALUES (1, 1, CURRENT_DATE);
+SAVEPOINT after_borrow_insert;
+
+SET @curr_stock = (SELECT stock FROM Books WHERE book_id = 1);
+UPDATE Books SET stock = stock - 1 WHERE book_id = 1 AND stock > 0;
+
+COMMIT;
+SELECT 'Book issued successfully!' AS Status;
+
+-- ROLLBACK demo
+START TRANSACTION;
+INSERT INTO Borrow (member_id, book_id, borrow_date) VALUES (2, 6, CURRENT_DATE);
+SAVEPOINT sp_insert;
+UPDATE Books SET stock = stock - 1 WHERE book_id = 6 AND stock > 0;
+ROLLBACK TO sp_insert;
+ROLLBACK;
+SELECT 'Transaction rolled back - book unavailable.' AS Status;
+
+-- Show current state
+SELECT B.book_id, B.title, B.stock, COUNT(BR.borrow_id) AS times_borrowed
+FROM Books B
+LEFT JOIN Borrow BR ON B.book_id = BR.book_id
+GROUP BY B.book_id, B.title, B.stock;
+
+
+# ============================================================
+# Q11 (OR): Sales Performance - Aggregate Functions
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS sales_db;
+USE sales_db;
+
+CREATE TABLE Sales (
+    sale_id      INT           PRIMARY KEY AUTO_INCREMENT,
+    product_name VARCHAR(100)  NOT NULL,
+    region       VARCHAR(50)   NOT NULL,
+    quantity     INT,
+    price        DECIMAL(10,2)
+);
+
+INSERT INTO Sales (product_name, region, quantity, price) VALUES
+('Laptop',     'North',  5, 65000),
+('Laptop',     'South',  3, 65000),
+('Phone',      'East',  10, 25000),
+('Phone',      'West',   8, 25000),
+('Phone',      'North',  6, 25000),
+('Tablet',     'South',  4, 18000),
+('Tablet',     'East',   7, 18000),
+('Headphones', 'North', 15,  2500),
+('Headphones', 'West',  20,  2500),
+('Keyboard',   'East',  12,  1500),
+('Keyboard',   'South',  9,  1500),
+('Mouse',      'North', 25,   800),
+('Mouse',      'West',  30,   800),
+('Monitor',    'South',  6, 18000),
+('Monitor',    'East',   4, 18000);
+
+-- Query 1: Total sales amount per product
+SELECT product_name, SUM(quantity * price) AS total_sales
+FROM Sales GROUP BY product_name ORDER BY total_sales DESC;
+
+-- Query 2: Average sales per region
+SELECT region, AVG(quantity * price) AS avg_sales
+FROM Sales GROUP BY region ORDER BY avg_sales DESC;
+
+-- Query 3: Highest and lowest sales
+SELECT MAX(quantity * price) AS highest_sale, MIN(quantity * price) AS lowest_sale FROM Sales;
+
+-- Query 4a: GROUP BY product_name
+SELECT product_name, SUM(quantity) AS total_units, SUM(quantity * price) AS total_revenue
+FROM Sales GROUP BY product_name;
+
+-- Query 4b: GROUP BY region
+SELECT region, COUNT(*) AS transactions, SUM(quantity * price) AS total_revenue
+FROM Sales GROUP BY region;
+
+-- Query 5a: HAVING - products with total sales > 500000
+SELECT product_name, SUM(quantity * price) AS total_sales
+FROM Sales GROUP BY product_name HAVING total_sales > 500000;
+
+-- Query 5b: HAVING - regions where avg sales < 100000
+SELECT region, AVG(quantity * price) AS avg_sales
+FROM Sales GROUP BY region HAVING avg_sales < 100000;
+
+
+# ============================================================
+# Q12 (MAIN): Banking TCL - Money Transfer Transaction
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS transfer_db;
+USE transfer_db;
+
+CREATE TABLE Accounts (
+    acc_id  INT           PRIMARY KEY AUTO_INCREMENT,
+    name    VARCHAR(100)  NOT NULL,
+    balance DECIMAL(12,2) DEFAULT 0 CHECK (balance >= 0)
+);
+
+INSERT INTO Accounts (name, balance) VALUES
+('Sender Account',   50000),
+('Receiver Account',  8000);
+
+-- Scenario 1: SUCCESSFUL Transfer of Rs. 10,000
+START TRANSACTION;
+UPDATE Accounts SET balance = balance - 10000 WHERE acc_id = 1;
+SAVEPOINT after_deduction;
+UPDATE Accounts SET balance = balance + 10000 WHERE acc_id = 2;
+SELECT acc_id, name, balance FROM Accounts;
+COMMIT;
+SELECT 'Transfer of Rs.10,000 COMMITTED successfully!' AS Status;
+
+-- Stored Procedure for Transfer with Error Handling
+DELIMITER $$
+
+CREATE PROCEDURE transfer_amount(
+    IN from_acc INT,
+    IN to_acc   INT,
+    IN amount   DECIMAL(12,2)
+)
+BEGIN
+    DECLARE sender_bal DECIMAL(12,2);
+
+    SELECT balance INTO sender_bal FROM Accounts WHERE acc_id = from_acc FOR UPDATE;
+
+    START TRANSACTION;
+
+    IF sender_bal < amount THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'ERROR: Insufficient balance. Transfer cancelled.';
+    ELSE
+        UPDATE Accounts SET balance = balance - amount WHERE acc_id = from_acc;
+        SAVEPOINT after_deduction;
+        UPDATE Accounts SET balance = balance + amount WHERE acc_id = to_acc;
+        COMMIT;
+        SELECT CONCAT('Transfer of Rs.', amount, ' SUCCESSFUL!') AS Status;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Test successful transfer
+CALL transfer_amount(1, 2, 5000);
+
+-- Test failed transfer (insufficient balance)
+-- CALL transfer_amount(1, 2, 500000); -- Will raise error & rollback
+
+-- View final balances
+SELECT acc_id, name, balance FROM Accounts;
+
+-- Manual SAVEPOINT + ROLLBACK demo
+START TRANSACTION;
+UPDATE Accounts SET balance = balance - 2000 WHERE acc_id = 1;
+SAVEPOINT sp1;
+UPDATE Accounts SET balance = balance + 2000 WHERE acc_id = 2;
+ROLLBACK TO sp1;
+ROLLBACK;
+SELECT 'Manual SAVEPOINT + ROLLBACK demonstrated.' AS Result;
+
+
+# ============================================================
+# Q12 (OR): MongoDB - CRUD Operations
+# ============================================================
+
+use crudDB;
+
+// CREATE
+db.employees.insertOne({
+  emp_id: 1, name: "Alice Sharma", dept: "IT",
+  salary: 75000, city: "Mumbai", active: true
+});
+
+db.employees.insertMany([
+  { emp_id: 2, name: "Bob Verma",   dept: "HR",        salary: 45000, city: "Delhi",   active: true },
+  { emp_id: 3, name: "Carol Patel", dept: "Finance",   salary: 60000, city: "Pune",    active: true },
+  { emp_id: 4, name: "David Singh", dept: "IT",        salary: 90000, city: "Mumbai",  active: false },
+  { emp_id: 5, name: "Eva Mehta",   dept: "Marketing", salary: 52000, city: "Chennai", active: true }
+]);
+
+db.employees.save({
+  emp_id: 6, name: "Frank Nair", dept: "Admin",
+  salary: 38000, city: "Kolkata", active: true
+});
+
+// READ
+db.employees.find({}).pretty();
+db.employees.find({ dept: "IT" }).pretty();
+db.employees.find({ dept: "IT", salary: { $gt: 70000 } }).pretty();
+db.employees.find({ $or: [ { dept: "HR" }, { city: "Mumbai" } ] }).pretty();
+db.employees.find({}, { _id: 0, name: 1, dept: 1, salary: 1 }).pretty();
+db.employees.find({}).sort({ salary: -1 }).limit(3).pretty();
+
+// UPDATE
+db.employees.updateOne(
+  { emp_id: 2 },
+  { $set: { salary: 50000, city: "Noida" } }
+);
+db.employees.updateMany(
+  { dept: "IT" },
+  { $inc: { salary: 5000 } }
+);
+let doc = db.employees.findOne({ emp_id: 3 });
+doc.salary = 65000;
+db.employees.save(doc);
+
+// DELETE
+db.employees.deleteOne({ emp_id: 6 });
+db.employees.deleteMany({ active: false });
+
+// Verify
+db.employees.find({}).sort({ emp_id: 1 }).pretty();
+print("Total employees:", db.employees.countDocuments());
+
+
+# ============================================================
+# Q13 (MAIN): Student Results - Aggregate Functions
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS results_db;
+USE results_db;
+
+CREATE TABLE Results (
+    result_id    INT          PRIMARY KEY AUTO_INCREMENT,
+    student_id   INT          NOT NULL,
+    student_name VARCHAR(100) NOT NULL,
+    subject      VARCHAR(50)  NOT NULL,
+    marks        INT CHECK (marks >= 0 AND marks <= 100)
+);
+
+INSERT INTO Results (student_id, student_name, subject, marks) VALUES
+(1,'Alice','DBMS',88),  (1,'Alice','OS',75),  (1,'Alice','Networks',92),
+(2,'Bob',  'DBMS',72),  (2,'Bob',  'OS',65),  (2,'Bob',  'Networks',58),
+(3,'Carol','DBMS',95),  (3,'Carol','OS',89),  (3,'Carol','Networks',97),
+(4,'David','DBMS',60),  (4,'David','OS',55),  (4,'David','Networks',70),
+(5,'Eva',  'DBMS',45),  (5,'Eva',  'OS',52),  (5,'Eva',  'Networks',48);
+
+-- Query 1: Total & average marks per student
+SELECT student_id, student_name,
+       SUM(marks) AS total_marks,
+       AVG(marks) AS avg_marks,
+       COUNT(subject) AS subjects_count
+FROM Results GROUP BY student_id, student_name ORDER BY total_marks DESC;
+
+-- Query 2: Max and min marks per subject
+SELECT subject, MAX(marks) AS highest_marks, MIN(marks) AS lowest_marks, AVG(marks) AS avg_marks
+FROM Results GROUP BY subject ORDER BY subject;
+
+-- Query 3a: GROUP BY student_id
+SELECT student_id, student_name, COUNT(*) AS subjects, SUM(marks) AS total, AVG(marks) AS average
+FROM Results GROUP BY student_id, student_name;
+
+-- Query 3b: GROUP BY subject
+SELECT subject, COUNT(*) AS students, SUM(marks) AS total, AVG(marks) AS average
+FROM Results GROUP BY subject;
+
+-- Query 4a: HAVING - avg marks > 70
+SELECT student_id, student_name, AVG(marks) AS avg_marks
+FROM Results GROUP BY student_id, student_name
+HAVING avg_marks > 70 ORDER BY avg_marks DESC;
+
+-- Query 4b: HAVING - subject max marks > 90
+SELECT subject, MAX(marks) AS max_marks
+FROM Results GROUP BY subject HAVING max_marks > 90;
+
+
+# ============================================================
+# Q13 (OR): MongoDB - CRUD Operations (same as Q12 OR)
+# ============================================================
+-- Refer to Q12 (OR) MongoDB CRUD answer above
+
+
+# ============================================================
+# Q14 (MAIN): Set Operations - Depositor & Borrower
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS bank_ops_db;
+USE bank_ops_db;
+
+CREATE TABLE Branch (
+    branch_name VARCHAR(100) PRIMARY KEY,
+    city        VARCHAR(50),
+    assets      DECIMAL(15,2)
+);
+
+CREATE TABLE Depositor (
+    customer_name  VARCHAR(100),
+    account_number VARCHAR(20)
+);
+
+CREATE TABLE Borrower (
+    customer_name VARCHAR(100),
+    loan_number   VARCHAR(20)
+);
+
+CREATE TABLE Account (
+    account_number VARCHAR(20) PRIMARY KEY,
+    branch_name    VARCHAR(100),
+    balance        DECIMAL(12,2)
+);
+
+CREATE TABLE Loan (
+    loan_number VARCHAR(20) PRIMARY KEY,
+    branch_name VARCHAR(100),
+    amount      DECIMAL(12,2)
+);
+
+INSERT INTO Branch VALUES
+('Perryridge','Brooklyn',  1700000),
+('Downtown',  'Brooklyn',  2100000),
+('Mianus',    'Horseneck',  400000),
+('Redwood',   'Palo Alto', 2100000),
+('Round Hill','Horseneck',  800000);
+
+INSERT INTO Depositor VALUES
+('Jones','A-101'),('Smith','A-215'),('Hayes','A-102'),
+('Turner','A-305'),('Johnson','A-201'),('Adams','A-321');
+
+INSERT INTO Borrower VALUES
+('Jones','L-170'),('Smith','L-230'),('Hayes','L-155'),
+('Turner','L-260'),('Williams','L-300'),('Green','L-155');
+
+INSERT INTO Account VALUES
+('A-101','Downtown',500),   ('A-215','Mianus',700),
+('A-102','Perryridge',400), ('A-305','Round Hill',350),
+('A-201','Perryridge',900), ('A-321','Redwood',1300);
+
+INSERT INTO Loan VALUES
+('L-170','Downtown',3000),  ('L-230','Redwood',4000),
+('L-155','Perryridge',1500),('L-260','Perryridge',1700),
+('L-300','Downtown',5000);
+
+-- Query 1: Customers with a LOAN or ACCOUNT (UNION)
+SELECT customer_name FROM Depositor
+UNION
+SELECT customer_name FROM Borrower;
+
+-- Query 2: Customers with BOTH loan AND account (INTERSECT via JOIN)
+SELECT DISTINCT D.customer_name
+FROM Depositor D INNER JOIN Borrower B ON D.customer_name = B.customer_name;
+
+-- Query 3: Customers with account but NO loan
+SELECT customer_name FROM Depositor
+WHERE customer_name NOT IN (SELECT customer_name FROM Borrower);
+
+-- Query 4: Loan details using tuple variable
+SELECT B.customer_name, L.loan_number, L.amount
+FROM Borrower B, Loan L
+WHERE B.loan_number = L.loan_number
+ORDER BY B.customer_name;
+
+-- Query 5: Branches with more assets than any Brooklyn branch
+SELECT T.branch_name, T.city, T.assets
+FROM Branch T, Branch S
+WHERE S.city = 'Brooklyn' AND T.assets > S.assets AND T.city != 'Brooklyn';
+
+-- OR using subquery:
+SELECT branch_name, city, assets FROM Branch
+WHERE assets > SOME (SELECT assets FROM Branch WHERE city = 'Brooklyn')
+AND city != 'Brooklyn';
+
+-- Query 6: Alphabetical borrowers at Perryridge
+SELECT DISTINCT D.customer_name
+FROM Borrower D JOIN Loan L ON D.loan_number = L.loan_number
+WHERE L.branch_name = 'Perryridge'
+ORDER BY D.customer_name ASC;
+
+
+# ============================================================
+# Q14 (OR): PL/SQL Stored Procedure proc_Grade (same as Q4 MAIN)
+# ============================================================
+-- Refer to Q4 (Main) answer above
+
+
+# ============================================================
+# Q15 (MAIN): Student Course - JOINs & VIEWs (same as Q8 OR)
+# ============================================================
+-- Refer to Q8 (OR) answer above
+
+
+# ============================================================
+# Q15 (OR): Database Triggers - BEFORE & AFTER
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS trigger_db;
+USE trigger_db;
+
+CREATE TABLE Products (
+    p_id         INT           PRIMARY KEY AUTO_INCREMENT,
+    pname        VARCHAR(100),
+    price        DECIMAL(10,2),
+    stock        INT DEFAULT 0,
+    last_updated DATETIME
+);
+
+CREATE TABLE Audit_Log (
+    log_id     INT         PRIMARY KEY AUTO_INCREMENT,
+    table_name VARCHAR(50),
+    action     VARCHAR(20),
+    old_value  TEXT,
+    new_value  TEXT,
+    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO Products (pname, price, stock) VALUES
+('Laptop',55000,10), ('Phone',25000,20), ('Tablet',18000,15);
+
+DELIMITER $$
+
+-- BEFORE INSERT Trigger: Validates price > 0
+CREATE TRIGGER trg_before_product_insert
+BEFORE INSERT ON Products
+FOR EACH ROW
+BEGIN
+    IF NEW.price <= 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Price must be greater than 0';
+    END IF;
+    SET NEW.last_updated = NOW();
+END$$
+
+-- AFTER INSERT Trigger: Logs every new product insertion
+CREATE TRIGGER trg_after_product_insert
+AFTER INSERT ON Products
+FOR EACH ROW
+BEGIN
+    INSERT INTO Audit_Log (table_name, action, old_value, new_value)
+    VALUES ('Products', 'INSERT', NULL,
+            CONCAT('ID=', NEW.p_id, ', Name=', NEW.pname, ', Price=', NEW.price, ', Stock=', NEW.stock));
+END$$
+
+-- BEFORE UPDATE Trigger: Prevents price reduction > 50%
+CREATE TRIGGER trg_before_product_update
+BEFORE UPDATE ON Products
+FOR EACH ROW
+BEGIN
+    IF NEW.price < (OLD.price * 0.50) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Price cannot be reduced by more than 50%';
+    END IF;
+    SET NEW.last_updated = NOW();
+END$$
+
+-- AFTER UPDATE Trigger: Logs every product update
+CREATE TRIGGER trg_after_product_update
+AFTER UPDATE ON Products
+FOR EACH ROW
+BEGIN
+    INSERT INTO Audit_Log (table_name, action, old_value, new_value)
+    VALUES ('Products', 'UPDATE',
+            CONCAT('Price=', OLD.price, ', Stock=', OLD.stock),
+            CONCAT('Price=', NEW.price, ', Stock=', NEW.stock));
+END$$
+
+-- BEFORE DELETE Trigger: Prevents deletion if stock > 15
+CREATE TRIGGER trg_before_product_delete
+BEFORE DELETE ON Products
+FOR EACH ROW
+BEGIN
+    IF OLD.stock > 15 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot delete product with stock > 15';
+    END IF;
+END$$
+
+-- AFTER DELETE Trigger: Logs deleted records
+CREATE TRIGGER trg_after_product_delete
+AFTER DELETE ON Products
+FOR EACH ROW
+BEGIN
+    INSERT INTO Audit_Log (table_name, action, old_value, new_value)
+    VALUES ('Products', 'DELETE',
+            CONCAT('ID=', OLD.p_id, ', Name=', OLD.pname, ', Price=', OLD.price), NULL);
+END$$
+
+DELIMITER ;
+
+-- Test BEFORE INSERT (valid)
+INSERT INTO Products (pname, price, stock) VALUES ('Monitor', 18000, 8);
+
+-- Test BEFORE INSERT (invalid price - will error)
+-- INSERT INTO Products (pname, price, stock) VALUES ('Bad Item', -500, 5);
+
+-- Test AFTER UPDATE trigger
+UPDATE Products SET price = 22000 WHERE pname = 'Phone';
+
+-- View audit log
+SELECT * FROM Audit_Log ORDER BY changed_at DESC;
+
+-- View all triggers
+SHOW TRIGGERS FROM trigger_db;
+
+
+# ============================================================
+# Q16 (MAIN): Company DB - Emp & Dept Queries
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS company_emp_db;
+USE company_emp_db;
+
+CREATE TABLE dept (
+    deptno   INT         PRIMARY KEY,
+    deptname VARCHAR(50) NOT NULL,
+    location VARCHAR(50)
+);
+
+CREATE TABLE emp (
+    eno        INT           PRIMARY KEY,
+    ename      VARCHAR(100)  NOT NULL,
+    job        VARCHAR(50),
+    hiredate   DATE,
+    salary     DECIMAL(10,2),
+    commission DECIMAL(10,2) DEFAULT 0,
+    deptno     INT,
+    FOREIGN KEY (deptno) REFERENCES dept(deptno)
+);
+
+INSERT INTO dept VALUES
+(10, 'Dev',       'New York'),
+(20, 'Sales',     'Chicago'),
+(30, 'HR',        'Dallas'),
+(40, 'Finance',   'Boston'),
+(50, 'Marketing', 'Seattle');
+
+INSERT INTO emp VALUES
+(1001,'Ivan Shah',    'Salesman',  '2020-01-15', 45000, 5000, 20),
+(1002,'Irene Patel',  'Developer', '2019-03-20', 72000,    0, 10),
+(1003,'John Smith',   'Manager',   '2018-07-10', 95000,    0, 10),
+(1004,'Alice Roy',    'Developer', '2021-05-25', 68000,    0, 10),
+(1005,'Bob Kumar',    'Salesman',  '2020-08-01', 52000, 8000, 20),
+(1006,'Carol Nair',   'Analyst',   '2022-02-14', 60000,    0, 30),
+(1007,'David Singh',  'Developer', '2019-11-30', 78000,    0, 10),
+(1008,'Isabella Ray', 'Salesman',  '2021-09-05', 48000, 6000, 20),
+(1009,'Frank Mehta',  'HR Exec',   '2023-01-10', 40000,    0, 30),
+(1010,'Eva Sharma',   'Analyst',   '2022-06-20', 65000,    0, 40);
+
+-- Query 1: Maximum salary paid to Salesman
+SELECT MAX(salary) AS max_salesman_salary FROM emp WHERE job = 'Salesman';
+
+-- Query 2: Employee names starting with 'I'
+SELECT eno, ename, job, salary FROM emp WHERE ename LIKE 'I%';
+
+-- Query 3: Employee details ordered by salary (descending)
+SELECT eno, ename, job, salary, deptno FROM emp ORDER BY salary DESC;
+
+-- Query 4: Avg & min salary by hiredate for dept 10
+SELECT hiredate, AVG(salary) AS avg_salary, MIN(salary) AS min_salary, COUNT(*) AS emp_count
+FROM emp WHERE deptno = 10 GROUP BY hiredate ORDER BY hiredate;
+
+-- Query 5: Employee name and their department
+SELECT e.ename AS Employee, d.deptname AS Department, d.location
+FROM emp e JOIN dept d ON e.deptno = d.deptno
+ORDER BY d.deptname, e.ename;
+
+-- Query 6: Total salary paid to each department
+SELECT d.deptname, d.location, COUNT(e.eno) AS employees,
+       SUM(e.salary) AS total_salary, AVG(e.salary) AS avg_salary
+FROM dept d LEFT JOIN emp e ON d.deptno = e.deptno
+GROUP BY d.deptno, d.deptname, d.location ORDER BY total_salary DESC;
+
+-- Query 7: Employees working in 'Dev' department
+SELECT e.eno, e.ename, e.job, e.salary, e.hiredate
+FROM emp e JOIN dept d ON e.deptno = d.deptno
+WHERE d.deptname = 'Dev' ORDER BY e.salary DESC;
+
+
+# ============================================================
+# Q16 (OR): Library Audit Trigger System
+# ============================================================
+
+CREATE DATABASE IF NOT EXISTS lib_audit_db;
+USE lib_audit_db;
+
+CREATE TABLE Library (
+    book_id    INT          PRIMARY KEY AUTO_INCREMENT,
+    title      VARCHAR(200) NOT NULL,
+    author     VARCHAR(100) NOT NULL,
+    isbn       VARCHAR(20)  UNIQUE,
+    price      DECIMAL(8,2),
+    stock      INT DEFAULT 1,
+    added_date DATE DEFAULT (CURRENT_DATE)
+);
+
+CREATE TABLE Library_Audit (
+    audit_id     INT          PRIMARY KEY AUTO_INCREMENT,
+    book_id      INT,
+    operation    VARCHAR(20),
+    old_title    VARCHAR(200),
+    old_author   VARCHAR(100),
+    old_price    DECIMAL(8,2),
+    old_stock    INT,
+    changed_by   VARCHAR(100) DEFAULT USER(),
+    changed_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    trigger_type VARCHAR(20)
+);
+
+INSERT INTO Library (title, author, isbn, price, stock) VALUES
+('Database Systems',  'Korth',     '978-0-07-352332-3', 650, 5),
+('Operating Systems', 'Tanenbaum', '978-0-13-359162-0', 580, 3),
+('Computer Networks', 'Forouzan',  '978-0-07-337566-5', 720, 4),
+('Data Structures',   'Cormen',    '978-0-26-204630-5', 890, 6),
+('Python Programming','Lutz',      '978-1-44-939890-3', 540, 2);
+
+DELIMITER $$
+
+-- BEFORE UPDATE Trigger (Row-level)
+CREATE TRIGGER trg_library_before_update
+BEFORE UPDATE ON Library
+FOR EACH ROW
+BEGIN
+    INSERT INTO Library_Audit (book_id, operation, old_title, old_author, old_price, old_stock, trigger_type)
+    VALUES (OLD.book_id, 'UPDATE', OLD.title, OLD.author, OLD.price, OLD.stock, 'BEFORE');
+END$$
+
+-- AFTER UPDATE Trigger (Row-level)
+CREATE TRIGGER trg_library_after_update
+AFTER UPDATE ON Library
+FOR EACH ROW
+BEGIN
+    INSERT INTO Library_Audit (book_id, operation, old_title, old_author, old_price, old_stock, trigger_type)
+    VALUES (NEW.book_id, 'AFTER_UPDATE',
+            CONCAT('Was:', OLD.title, ' Now:', NEW.title),
+            NEW.author, NEW.price, NEW.stock, 'AFTER');
+END$$
+
+-- BEFORE DELETE Trigger (Row-level)
+CREATE TRIGGER trg_library_before_delete
+BEFORE DELETE ON Library
+FOR EACH ROW
+BEGIN
+    INSERT INTO Library_Audit (book_id, operation, old_title, old_author, old_price, old_stock, trigger_type)
+    VALUES (OLD.book_id, 'DELETE', OLD.title, OLD.author, OLD.price, OLD.stock, 'BEFORE');
+END$$
+
+-- AFTER DELETE Trigger (Row-level)
+CREATE TRIGGER trg_library_after_delete
+AFTER DELETE ON Library
+FOR EACH ROW
+BEGIN
+    INSERT INTO Library_Audit (book_id, operation, old_title, old_author, old_price, old_stock, trigger_type)
+    VALUES (OLD.book_id, 'AFTER_DELETE', OLD.title, OLD.author, OLD.price, OLD.stock, 'AFTER');
+END$$
+
+DELIMITER ;
+
+-- Test UPDATE Trigger
+UPDATE Library SET price = 700, stock = 4 WHERE book_id = 1;
+
+-- Test DELETE Trigger
+DELETE FROM Library WHERE book_id = 5;
+
+-- View Library_Audit log
+SELECT audit_id, book_id, operation, old_title, old_price, old_stock, trigger_type, changed_at
+FROM Library_Audit ORDER BY changed_at DESC;
+
+-- View remaining books
+SELECT * FROM Library ORDER BY book_id;
+
+-- List all triggers
+SHOW TRIGGERS FROM lib_audit_db;
+
+
+# ============================================================
+# END OF FILE - All 32 Questions Answered
+# MySQL (SQL/PL/SQL) + MongoDB
+# ============================================================
